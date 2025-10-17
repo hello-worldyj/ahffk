@@ -48,15 +48,20 @@
     async function loadIP() {
       const info = document.getElementById("info");
       try {
-        // ✅ GitHub Pages에서도 작동하도록 CORS 우회 프록시 사용
-        const res = await fetch("https://corsproxy.io/?https://ipwho.is/");
+        // ✅ CORS 문제 없는 공개 API 사용
+        const res = await fetch("https://ipapi.co/json/");
         const data = await res.json();
-        if (!data.success) throw new Error("IP 정보를 불러올 수 없습니다.");
+
+        if (!data.ip) throw new Error("IP 정보를 불러올 수 없습니다.");
 
         info.innerHTML = `
           <b>IP:</b> ${data.ip}<br>
-          <b>위치:</b> ${data.city || "?"}, ${data.country}<br>
-          <b>ISP:</b> ${data.connection?.isp || "?"}
+          <b>국가:</b> ${data.country_name} (${data.country_code})<br>
+          <b>도시:</b> ${data.city || "-"}<br>
+          <b>위도:</b> ${data.latitude}<br>
+          <b>경도:</b> ${data.longitude}<br>
+          <b>ISP:</b> ${data.org || "-"}<br>
+          <b>시간대:</b> ${data.timezone || "-"}
         `;
 
         const map = L.map("map").setView([data.latitude, data.longitude], 10);
@@ -65,7 +70,7 @@
         }).addTo(map);
         L.marker([data.latitude, data.longitude])
           .addTo(map)
-          .bindPopup(`${data.ip}<br>${data.city || ""}, ${data.country}`)
+          .bindPopup(`<b>${data.ip}</b><br>${data.city || ""}, ${data.country_name}`)
           .openPopup();
       } catch (err) {
         console.error(err);
