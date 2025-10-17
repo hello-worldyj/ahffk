@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>내 IP 위치 보기</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      background: #0e1621;
+      color: #fff;
+    }
+    h1 {
+      margin-top: 20px;
+    }
+    #info {
+      margin: 15px auto;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      max-width: 400px;
+      line-height: 1.6;
+    }
+    #map {
+      height: 400px;
+      width: 90%;
+      max-width: 800px;
+      margin: 20px auto;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>내 IP 위치 보기</h1>
+  <div id="info">불러오는 중...</div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    async function loadIP() {
+      const info = document.getElementById("info");
+      try {
+        const res = await fetch("https://ipwho.is/");
+        const data = await res.json();
+        if (!data.success) throw new Error("IP 정보를 불러올 수 없습니다.");
+
+        info.innerHTML = `
+          <b>IP:</b> ${data.ip}<br>
+          <b>위치:</b> ${data.city || "?"}, ${data.country}<br>
+          <b>위도:</b> ${data.latitude}, <b>경도:</b> ${data.longitude}<br>
+          <b>ISP:</b> ${data.connection?.isp || "?"}<br>
+          <b>시간대:</b> ${data.timezone?.id || "?"}
+        `;
+
+        const map = L.map("map").setView([data.latitude, data.longitude], 10);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 18,
+        }).addTo(map);
+        L.marker([data.latitude, data.longitude])
+          .addTo(map)
+          .bindPopup(`${data.ip}<br>${data.city}, ${data.country}`)
+          .openPopup();
+      } catch (err) {
+        info.textContent = "정보를 불러올 수 없습니다.";
+        console.error(err);
+      }
+    }
+
+    loadIP();
+  </script>
+</body>
+</html>
