@@ -1,77 +1,76 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>내 IP 위치 보기</title>
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
-  <style>
-    body {
-      background: #0d1117;
-      color: #e6edf3;
-      font-family: "Noto Sans KR", sans-serif;
-      text-align: center;
-      margin: 0;
-      padding: 0;
-    }
-    h1 {
-      color: #58a6ff;
-      margin: 1.5rem 0 0.5rem;
-    }
-    #info {
-      background: rgba(255, 255, 255, 0.05);
-      padding: 1rem;
-      border-radius: 10px;
-      display: inline-block;
-      margin-bottom: 1rem;
-    }
-    #map {
-      width: 90%;
-      max-width: 800px;
-      height: 400px;
-      margin: 0 auto 2rem;
-      border-radius: 10px;
-    }
-  </style>
-</head>
-<body>
-  <h1>내 IP 위치 보기</h1>
-  <div id="info">불러오는 중...</div>
-  <div id="map"></div>
+// MainActivity.kt
+package com.example.locationapp
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    async function loadIP() {
-      const info = document.getElementById("info");
-      try {
-        const res = await fetch("https://ipwho.is/");
-        const data = await res.json();
-        if (!data.success) throw new Error("IP 정보를 불러올 수 없습니다.");
+import android.Manifest
+import android.content.pm.PackageManager
+import android.location.Location
+import android.os.Bundle
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import android.widget.LinearLayout
+import android.view.Gravity
+import android.view.ViewGroup
+import android.graphics.Color
 
-        info.innerHTML = `
-          <b>IP:</b> ${data.ip}<br>
-          <b>위치:</b> ${data.city || "?"}, ${data.country}<br>
-          <b>ISP:</b> ${data.connection?.isp || "?"}
-        `;
+class MainActivity : AppCompatActivity() {
 
-        const map = L.map("map").setView([data.latitude, data.longitude], 10);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 18,
-        }).addTo(map);
-        L.marker([data.latitude, data.longitude])
-          .addTo(map)
-          .bindPopup(`${data.ip}<br>${data.city || ""}, ${data.country}`)
-          .openPopup();
-      } catch (err) {
-        info.textContent = "정보를 불러올 수 없습니다.";
-        console.error(err);
-      }
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var locationText: TextView
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // 코드로 UI 생성
+        val layout = LinearLayout(this)
+        layout.orientation = LinearLayout.VERTICAL
+        layout.gravity = Gravity.CENTER
+        layout.setBackgroundColor(Color.WHITE)
+        layout.layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+
+        locationText = TextView(this)
+        locationText.text = "위치를 가져오는 중..."
+        locationText.textSize = 20f
+        layout.addView(locationText)
+        setContentView(layout)
+
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        // 위치 권한 체크
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 100)
+            return
+        }
+
+        getLastLocation()
     }
 
-    loadIP();
-  </script>
-</body>
-</html>
+    private fun getLastLocation() {
+        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+            if (location != null) {
+                locationText.text = "Latitude: ${location.latitude}\nLongitude: ${location.longitude}"
+            } else {
+                locationText.text = "위치를 가져올 수 없습니다."
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int,
+                                            permissions: Array<out String>,
+                                            grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 100 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            getLastLocation()
+        } else {
+            locationText.text = "위치 권한이 필요합니다."
+        }
+    }
+}
