@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>내 IP 위치 보기</title>
+  <title>내 현재 위치 보기</title>
   <link
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
@@ -36,49 +36,78 @@
       margin: 0 auto 2rem;
       border-radius: 10px;
     }
+    button {
+      background: #238636;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #2ea043;
+    }
   </style>
 </head>
 <body>
-  <h1>내 IP 위치 보기</h1>
-  <div id="info">불러오는 중...</div>
+  <h1>내 현재 위치 보기</h1>
+  <div id="info">버튼을 눌러 내 위치를 확인하세요.</div>
+  <button onclick="getLocation()">📍 위치 허용하기</button>
   <div id="map"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    async function loadIP() {
+    let map;
+
+    function getLocation() {
       const info = document.getElementById("info");
-      try {
-        // ✅ CORS 문제 없는 공개 API 사용
-        const res = await fetch("https://ipapi.co/json/");
-        const data = await res.json();
 
-        if (!data.ip) throw new Error("IP 정보를 불러올 수 없습니다.");
-
-        info.innerHTML = `
-          <b>IP:</b> ${data.ip}<br>
-          <b>국가:</b> ${data.country_name} (${data.country_code})<br>
-          <b>도시:</b> ${data.city || "-"}<br>
-          <b>위도:</b> ${data.latitude}<br>
-          <b>경도:</b> ${data.longitude}<br>
-          <b>ISP:</b> ${data.org || "-"}<br>
-          <b>시간대:</b> ${data.timezone || "-"}
-        `;
-
-        const map = L.map("map").setView([data.latitude, data.longitude], 10);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 18,
-        }).addTo(map);
-        L.marker([data.latitude, data.longitude])
-          .addTo(map)
-          .bindPopup(`<b>${data.ip}</b><br>${data.city || ""}, ${data.country_name}`)
-          .openPopup();
-      } catch (err) {
-        console.error(err);
-        info.textContent = "❌ 정보를 불러올 수 없습니다.";
+      if (!navigator.geolocation) {
+        info.textContent = "❌ 이 브라우저에서는 위치 정보를 사용할 수 없습니다.";
+        return;
       }
-    }
 
-    loadIP();
+      info.textContent = "📡 현재 위치를 불러오는 중...";
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const acc = pos.coords.accuracy;
+
+          info.innerHTML = `
+            ✅ 위치 허용됨<br>
+            <b>위도:</b> ${lat.toFixed(5)}<br>
+            <b>경도:</b> ${lon.toFixed(5)}<br>
+            <b>정확도:</b> ±${Math.round(acc)}m
+          `;
+
+          if (!map) {
+            map = L.map("map").setView([lat, lon], 15);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+              maxZoom: 19,
+            }).addTo(map);
+          } else {
+            map.setView([lat, lon], 15);
+          }
+
+          L.marker([lat, lon])
+            .addTo(map)
+            .bindPopup("📍 내 현재 위치")
+            .openPopup();
+        },
+        (err) => {
+          console.error(err);
+          if (err.code === 1) {
+            info.textContent = "🚫 위치 권한이 거부되었습니다.";
+          } else {
+            info.textContent = "❌ 위치 정보를 가져올 수 없습니다.";
+          }
+        }
+      );
+    }
   </script>
 </body>
 </html>
